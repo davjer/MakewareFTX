@@ -1,0 +1,109 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.33;
+
+interface IUGINFTCoreV5 {
+    function getReputation(uint256 id)
+        external
+        view
+        returns (
+            uint256 score,
+            uint256 lastUpdate,
+            uint8 tier,
+            bool broken,
+            uint256 breakTimestamp
+        );
+}
+
+contract RiskInterestEngineV1 {
+
+    IUGINFTCoreV5 public nft;
+
+    uint256 public baseAPR = 500; // 5% = 500 bps
+    uint256 public maxAPR  = 2500; // 25%
+    uint256 public minAPR  = 200;  // 2%
+
+    event APRComputed(
+        uint256 indexed nftId,
+        uint256 score,
+        uint256 aprBps
+    );
+
+    constructor(address nftAddress) {
+        nft = IUGINFTCoreV5(nftAddress);
+    }
+
+    // ----------------------------
+    // CORE RISK MODEL
+    // ----------------------------
+    function getAPR(uint256 nftId)
+        external
+        view
+        returns (uint256 aprBps)
+    {
+        (
+            uint256 score,
+            ,
+            uint8 tier,
+            bool broken,
+        ) = nft.getReputation(nftId);
+
+        if (broken) {
+            return maxAPR;
+        }
+
+        // ----------------------------
+        // SCORE NORMALIZATION
+        // ----------------------------
+        // score range assumed: 0 - 1000
+
+        uint256 riskFactor;
+
+        if (score >= 800) {
+            riskFactor = 0;
+        } else if (score >= 600) {
+            riskFactor = 300;
+        } else if (score >= 400) {
+            riskFactor = 800;
+        } else if (score >= 200) {
+            riskFactor = 1500;
+        } else {
+            riskFactor = 2200;
+        }
+
+        // ----------------------------
+        // TIER ADJUSTMENT
+        // ----------------------------
+        if (tier == 0) {
+            riskFactor += 500; // LOW
+        } else if (tier == 1) {
+            riskFactor += 200; // BASIC
+        } else if (tier == 2) {
+            riskFactor -= 100; // TRUSTED
+        } else if (tier == 3) {
+            riskFactor -= 300; // PRIME
+        }
+
+        // ----------------------------
+        // FINAL APR BOUNDS
+        // ----------------------------
+        if (riskFactor < minAPR) {
+            aprBps = minAPR;
+        } else if (riskFactor > maxAPR) {
+            aprBps = maxAPR;
+        } else {
+            aprBps = riskFactor;
+        }
+    }
+
+    // ----------------------------
+    // OPTIONAL: PREVIEW (debug / frontend)
+    // ----------------------------
+    function previewAPR(uint256 nftId)
+        external
+        view
+        returns (uint256 aprBps, uint256 score, uint8 tier, bool broken)
+    {
+        (score,, tier, broken,) = nft.getReputation(nftId);
+        aprBps = this.getAPR(nftId);
+    }
+}
