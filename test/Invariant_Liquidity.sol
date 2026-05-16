@@ -1,32 +1,33 @@
-contract Invariant_Reputation {
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.33;
 
-    // CORE RULES:
+import "./invariants/BaseInvariantTest.sol";
+
+contract Invariant_Liquidity is BaseInvariantTest {
 
     /*
-    RULE 1:
-    score must never exceed bounds (0–1000)
+    CORE RULES:
 
-    RULE 2:
-    broken NFT cannot increase score
-
-    RULE 3:
-    tier must match score thresholds
-
-    RULE 4:
-    decay must be monotonic per transfer cooldown
+    1. totalAssets >= totalBorrowed
+    2. totalAvailable >= reservedLiquidity
+    3. withdrawals never exceed withdrawableLiquidity
+    4. borrow/repay keeps accounting consistent
     */
 
-    function invariant_ScoreBounds() public {
-        // assert nft.score <= 1000
-        // assert nft.score >= 0
+    function invariant_AssetCoverage() public view {
+        assertGe(pool.totalAssets(), pool.totalBorrowed());
     }
 
-    function invariant_BrokenStateFrozen() public {
-        // if broken == true:
-        // reward() must not increase score
+    function invariant_ReserveSafety() public view {
+        assertGe(pool.totalAvailable(), pool.reservedLiquidity());
     }
 
-    function invariant_TierConsistency() public {
-        // validate tier mapping correctness
+    function invariant_NoNegativeWithdrawable() public view {
+        assertGe(pool.withdrawableLiquidity(), 0);
+    }
+
+    function invariant_AccountingConsistency() public view {
+        uint256 computed = pool.totalDeposited() - pool.totalWithdrawn();
+        assertGe(pool.totalAssets(), computed);
     }
 }

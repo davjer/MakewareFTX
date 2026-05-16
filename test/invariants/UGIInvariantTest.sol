@@ -1,8 +1,14 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.33;
+
+import "./BaseInvariantTest.sol";
+
 contract UGIInvariantTest is BaseInvariantTest {
 
     // ----------------------------
     // 1. LIQUIDITY CONSISTENCY
     // ----------------------------
+
     function invariant_ExposureMatchesPool() public view {
         assertEq(
             vault.totalExposure(),
@@ -11,46 +17,70 @@ contract UGIInvariantTest is BaseInvariantTest {
     }
 
     // ----------------------------
-    // 2. NO NEGATIVE STATE
+    // 2. POOL ACCOUNTING
     // ----------------------------
+
     function invariant_NoNegativeLiquidity() public view {
-        assertTrue(pool.totalAssets() >= pool.totalBorrowed());
+        assertGe(
+            pool.totalAssets(),
+            pool.totalBorrowed()
+        );
     }
 
     // ----------------------------
-    // 3. LOAN STATE CONSISTENCY
+    // 3. ACTIVE LOAN ACCOUNTING
     // ----------------------------
+
     function invariant_LoanIntegrity() public view {
-        assertTrue(vault.totalActiveLoans() >= 0);
+        assertGe(
+            vault.totalActiveLoans(),
+            0
+        );
     }
 
     // ----------------------------
-    // 4. NFT REPUTATION BOUNDS
+    // 4. SYSTEM SOLVENCY
     // ----------------------------
-    function invariant_ReputationBounds() public view {
-        // pseudo-check (would require indexing or exposed getter)
-        // score must always be within valid range
-    }
 
-    // ----------------------------
-    // 5. ESCROW SAFETY
-    // ----------------------------
-    function invariant_EscrowNeverOverReleases() public view {
-        // escrow.released <= escrow.total
-    }
-
-    // ----------------------------
-    // 6. ORACLE REPLAY PROTECTION
-    // ----------------------------
-    function invariant_NoRequestReuse() public view {
-        // usedRequest must always be unique per requestId
-    }
-
-    // ----------------------------
-    // 7. SYSTEM SOLVENCY
-    // ----------------------------
     function invariant_SystemSolvent() public view {
-        uint256 available = pool.totalAssets() - pool.totalBorrowed();
-        assertGe(available, 0);
+        assertGe(
+            pool.totalAssets(),
+            pool.totalBorrowed()
+        );
+    }
+
+    // ----------------------------
+    // 5. AVAILABLE LIQUIDITY
+    // ----------------------------
+
+    function invariant_AvailableLiquiditySafe() public view {
+        assertLe(
+            pool.totalAvailable(),
+            pool.totalAssets()
+        );
+    }
+
+    // ----------------------------
+    // 6. SHARE ACCOUNTING
+    // ----------------------------
+
+    function invariant_ShareValueSafe() public view {
+        if (pool.totalShares() == 0) return;
+
+        assertGt(
+            pool.shareValue(),
+            0
+        );
+    }
+
+    // ----------------------------
+    // 7. VAULT EXPOSURE SAFE
+    // ----------------------------
+
+    function invariant_ExposureNeverExceedsAssets() public view {
+        assertLe(
+            vault.totalExposure(),
+            pool.totalAssets()
+        );
     }
 }

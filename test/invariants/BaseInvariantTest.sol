@@ -4,11 +4,19 @@ pragma solidity ^0.8.33;
 import "forge-std/Test.sol";
 import "forge-std/StdInvariant.sol";
 
-import "../../src/ReputationVaultV7.sol";
-//import "../../src/UGINFTCoreV6.sol";
-import "../../src/LiquidityPoolV3.sol";
-//import "../../src/UGIOracleV4.sol";
-//import "../../src/UGIEscrowV4.sol";
+// ----------------------------
+// CORE CONTRACTS
+// ----------------------------
+
+import "../../contracts/v1/ReputationVault.sol";
+import "../../contracts/v1/UGINFTCore.sol";
+import "../../contracts/v1/LiquidityPool.sol";
+import "../../contracts/v1/UGIOracle.sol";
+import "../../contracts/v1/UGIEscrow.sol";
+
+// ----------------------------
+// HANDLERS
+// ----------------------------
 
 import "./handlers/VaultHandler.sol";
 import "./handlers/PoolHandler.sol";
@@ -18,11 +26,11 @@ import "./handlers/NFTHandler.sol";
 
 contract BaseInvariantTest is StdInvariant, Test {
 
-    ReputationVaultV7 public vault;
-    UGINFTCoreV6 public nft;
-    LiquidityPoolV3 public pool;
-    UGIOracleV4 public oracle;
-    UGIEscrowV4 public escrow;
+    ReputationVault public vault;
+    UGINFTCore public nft;
+    LiquidityPool public pool;
+    UGIOracle public oracle;
+    UGIEscrow public escrow;
 
     VaultHandler public vaultHandler;
     PoolHandler public poolHandler;
@@ -35,18 +43,24 @@ contract BaseInvariantTest is StdInvariant, Test {
     function setUp() public {
         vm.startPrank(admin);
 
-        nft = new UGINFTCoreV6(admin);
-        oracle = new UGIOracleV3(address(0));
-        escrow = new UGIEscrowV4(admin);
-        pool = new LiquidityPoolV3(address(0), admin);
+        nft = new UGINFTCore(admin);
 
-        vault = new ReputationVaultV7(
+        pool = new LiquidityPool(address(0), admin);
+
+        oracle = new UGIOracle(address(nft), admin);
+
+        escrow = new UGIEscrow(admin);
+
+        vault = new ReputationVault(
             address(oracle),
             address(escrow),
             address(pool)
         );
 
-        // HANDLERS
+        pool.setVault(address(vault));
+        escrow.setVault(address(vault));
+        nft.setVault(address(vault));
+
         vaultHandler = new VaultHandler(vault);
         poolHandler = new PoolHandler(pool);
         oracleHandler = new OracleHandler(oracle);
